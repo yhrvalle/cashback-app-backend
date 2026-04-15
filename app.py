@@ -20,20 +20,13 @@ app.add_middleware(
 )
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=422,
-        content={
-            "status": "erro",
-            "mensagem": "Dados inválidos. Preencha corretamente os campos"
-        },
-    )
-@app.exception_handler(CashbackError)
-async def cashback_exception_handler(request: Request, exc: CashbackError):
+    erros = exc.errors()
+    msg = erros[0].get("msg")
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "status": "erro",
-            "mensagem": exc.message
+            "mensagem": f"Erro de validação: {msg}"
         },
     )
 
@@ -55,11 +48,6 @@ def calculo_cashback(valor_compra : Decimal, desconto_porcentual: Decimal, clien
 
 @app.post("/calcular")
 async def calcular(dados: CashbackRequest, request: Request, db: Session = Depends(get_db)):
-    if dados.valor <= 0:
-        raise ValorInvalidoError()
-    
-    if dados.desconto > 100 or dados.desconto < 0:
-        raise DescontoInvalidoError()
 
     cashback_resultado = calculo_cashback(dados.valor, dados.desconto, dados.cliente_vip)
 
