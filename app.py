@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
-from exceptions import CashbackError, ValorInvalidoError, DescontoInvalidoError
 from decimal import Decimal
 from schemas import CashbackRequest
 
