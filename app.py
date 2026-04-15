@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Request, Depends
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
+from exceptions import CashbackError, ValorInvalidoError, DescontoInvalidoError
 from decimal import Decimal
 from schemas import CashbackRequest
 
@@ -15,6 +18,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status": "erro",
+            "mensagem": "Dados inválidos. Preencha corretamente os campos"
+        },
+    )
+@app.exception_handler(CashbackError)
+async def cashback_exception_handler(request: Request, exc: CashbackError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "erro",
+            "mensagem": exc.message
+        },
+    )
 
 def calculo_cashback(valor_compra : Decimal, desconto_porcentual: Decimal, cliente_vip : bool) -> dict:
     CASHBACK_BASE = Decimal("0.05") 
@@ -34,6 +55,12 @@ def calculo_cashback(valor_compra : Decimal, desconto_porcentual: Decimal, clien
 
 @app.post("/calcular")
 async def calcular(dados: CashbackRequest, request: Request, db: Session = Depends(get_db)):
+    if dados.valor <= 0:
+        raise ValorInvalidoError()
+    
+    if dados.desconto > 100 or dados.desconto < 0:
+        raise DescontoInvalidoError()
+
     cashback_resultado = calculo_cashback(dados.valor, dados.desconto, dados.cliente_vip)
 
     salvar_consulta = models.ConsultaCashback(
