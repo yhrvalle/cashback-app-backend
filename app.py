@@ -47,11 +47,12 @@ def calculo_cashback(valor_compra : Decimal, desconto_porcentual: Decimal, clien
 
 @app.post("/calcular")
 async def calcular(dados: CashbackRequest, request: Request, db: Session = Depends(get_db)):
-
+    forwarded_header = request.headers.get("x-forwarded-for")
+    ip_cliente = forwarded_header.split(",")[0]
     cashback_resultado = calculo_cashback(dados.valor, dados.desconto, dados.cliente_vip)
 
     salvar_consulta = models.ConsultaCashback(
-        ip_usuario=request.client.host,
+        ip_usuario=ip_cliente,
         cliente_vip=dados.cliente_vip,
         valor_compra=dados.valor,
         valor_descontado=dados.valor * (1 - (dados.desconto / 100)),
@@ -69,7 +70,8 @@ async def calcular(dados: CashbackRequest, request: Request, db: Session = Depen
 
 @app.get("/historico")
 async def historico(request: Request, db: Session = Depends(get_db)):
-    ip_cliente = request.client.host
+    forwarded_header = request.headers.get("x-forwarded-for")
+    ip_cliente = forwarded_header.split(",")[0]
     
     consultas = db.query(models.ConsultaCashback).filter(
         models.ConsultaCashback.ip_usuario == ip_cliente
